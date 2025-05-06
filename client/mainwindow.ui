@@ -1,0 +1,301 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>MainWindow</class>
+ <widget class="QMainWindow" name="MainWindow">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>781</width>
+    <height>587</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>CloudBackup</string>
+  </property>
+  <property name="styleSheet">
+   <string notr="true">QWidget#centralwidget {
+    border-image: url(:/images/background.png) 0 0 0 0 stretch stretch;
+}
+
+/* 按钮单独写样式，不设置background: transparent */
+QPushButton {
+    background-color: rgba(255,255,255,100); /* 半透明 */
+    border: 1px solid gray;
+}
+</string>
+  </property>
+  <widget class="QWidget" name="centralwidget">
+   <layout class="QGridLayout" name="gridLayout">
+    <item row="2" column="0">
+     <widget class="QLabel" name="resultlabel">
+      <property name="text">
+       <string>TextLabel</string>
+      </property>
+     </widget>
+    </item>
+    <item row="0" column="0">
+     <layout class="QVBoxLayout" name="verticalLayout" stretch="3,3,2,2,20">
+      <item>
+       <layout class="QHBoxLayout" name="horizontalLayout" stretch="7,8">
+        <item>
+         <widget class="QLabel" name="imagelabel">
+          <property name="layoutDirection">
+           <enum>Qt::LeftToRight</enum>
+          </property>
+          <property name="text">
+           <string>TextLabel</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QLabel" name="titlelabel">
+          <property name="styleSheet">
+           <string notr="true">font-family: '微软雅黑', 'Arial', sans-serif;
+font-size: 26px;
+font-weight: 700;
+color: #3ECFFF;
+border-radius: 7px;
+padding: 15px 10px;
+text-align: center;
+letter-spacing: 2px;
+
+box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+</string>
+          </property>
+          <property name="text">
+           <string>TextLabel</string>
+          </property>
+         </widget>
+        </item>
+       </layout>
+      </item>
+      <item>
+       <layout class="QHBoxLayout" name="horizontalLayout_2" stretch="0,0">
+        <item>
+         <widget class="QLabel" name="backuptimelabel1">
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Fixed" vsizetype="Preferred">
+            <horstretch>0</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
+          <property name="styleSheet">
+           <string notr="true">font-family: &quot;Microsoft YaHei&quot;;
+font-size: 14px;
+color: #333333;</string>
+          </property>
+          <property name="text">
+           <string>TextLabel</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QLabel" name="backuptimelabel2">
+          <property name="styleSheet">
+           <string notr="true">font-family: &quot;Microsoft YaHei&quot;;
+font-size: 14px;
+font-weight: bold;
+color: #007ACC;
+qproperty-alignment: 'AlignLeft | AlignVCenter';</string>
+          </property>
+          <property name="text">
+           <string>TextLabel</string>
+          </property>
+         </widget>
+        </item>
+       </layout>
+      </item>
+      <item>
+       <layout class="QHBoxLayout" name="horizontalLayout_3" stretch="1,1">
+        <item>
+         <widget class="QPushButton" name="pushButton">
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Minimum" vsizetype="Expanding">
+            <horstretch>0</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
+          <property name="styleSheet">
+           <string notr="true">/* 基本按钮样式 */
+QPushButton {
+    /* 渐变背景：从亮蓝到深蓝 */
+    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                                stop:0 #5dade2, stop:1 #2874a6);
+    border: none;
+    border-radius: 8px;           /* 圆角 */
+    color: #ffffff;               /* 字体颜色 */
+    font-size: 16px;              /* 字体大小 */
+    font-weight: bold;            /* 字体加粗 */
+    padding: 8px 20px;            /* 内边距，上下8px，左右20px */
+    min-width: 100px;             /* 最小宽度 */
+    outline: none;                /* 取消焦点虚线框 */
+}
+
+/* 悬停时的效果 */
+QPushButton:hover {
+    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                                stop:0 #85c1e9, stop:1 #2e86c1);
+}
+
+/* 按下时的效果 */
+QPushButton:pressed {
+    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                                stop:0 #2471a3, stop:1 #1b4f72);
+    padding-left: 22px;  /* 模拟按下偏移 */
+    padding-top: 10px;
+}
+
+/* 禁用时的效果 */
+QPushButton:disabled {
+    background: #bbb;
+    color: #666;
+}
+
+/* 如果想在按钮里显示图标+文字，同时图标在左，文字在右： */
+QPushButton {
+    qproperty-icon: url(:/images/upload.svg);
+    qproperty-iconSize: 24px 24px;
+    /* 图标和文字自动有间隔 */
+}
+</string>
+          </property>
+          <property name="text">
+           <string>上传备份文件</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QPushButton" name="flushfilelistbutton">
+          <property name="styleSheet">
+           <string notr="true">/* 基本按钮样式 */
+QPushButton {
+    /* 渐变背景：从亮蓝到深蓝 */
+    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                                stop:0 #5dade2, stop:1 #2874a6);
+    border: none;
+    border-radius: 8px;           /* 圆角 */
+    color: #ffffff;               /* 字体颜色 */
+    font-size: 16px;              /* 字体大小 */
+    font-weight: bold;            /* 字体加粗 */
+    padding: 8px 20px;            /* 内边距，上下8px，左右20px */
+    min-width: 100px;             /* 最小宽度 */
+    outline: none;                /* 取消焦点虚线框 */
+}
+
+/* 悬停时的效果 */
+QPushButton:hover {
+    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                                stop:0 #85c1e9, stop:1 #2e86c1);
+}
+
+/* 按下时的效果 */
+QPushButton:pressed {
+    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                                stop:0 #2471a3, stop:1 #1b4f72);
+    padding-left: 22px;  /* 模拟按下偏移 */
+    padding-top: 10px;
+}
+
+/* 禁用时的效果 */
+QPushButton:disabled {
+    background: #bbb;
+    color: #666;
+}
+
+/* 如果想在按钮里显示图标+文字，同时图标在左，文字在右： */
+QPushButton {
+    qproperty-icon: url(:/images/upload.svg);
+    qproperty-iconSize: 24px 24px;
+    /* 图标和文字自动有间隔 */
+}
+</string>
+          </property>
+          <property name="text">
+           <string>刷新文件列表</string>
+          </property>
+         </widget>
+        </item>
+       </layout>
+      </item>
+      <item>
+       <widget class="QProgressBar" name="progressBar">
+        <property name="value">
+         <number>24</number>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QTreeWidget" name="backupfilelist">
+        <property name="styleSheet">
+         <string notr="true">/* 整体表格背景、边框、交替行色 */
+QTreeWidget {
+    background-color: #FFFFFF;
+    border: 1px solid #DDD;
+    alternate-background-color: #F9F9F9;
+    show-decoration-selected: 1; /* 选中时也显示背景色 */
+}
+
+/* 每一行的项 */
+QTreeWidget::item {
+    padding: 4px;
+}
+
+/* 选中行的样式 */
+QTreeWidget::item:selected {
+    background-color: #CCE4FF;
+    color: #000000;
+}
+
+/* 表头样式 */
+QHeaderView::section {
+    background-color: #F0F0F0;
+    padding: 6px;
+    border: 1px solid #DDD;
+    font-family: &quot;Microsoft YaHei&quot;;
+    font-size: 14px;
+    color: #333333;
+}
+</string>
+        </property>
+        <column>
+         <property name="text">
+          <string>文件名</string>
+         </property>
+        </column>
+        <column>
+         <property name="text">
+          <string>备份时间</string>
+         </property>
+        </column>
+        <column>
+         <property name="text">
+          <string>文件大小</string>
+         </property>
+        </column>
+        <column>
+         <property name="text">
+          <string>下载</string>
+         </property>
+        </column>
+       </widget>
+      </item>
+     </layout>
+    </item>
+   </layout>
+  </widget>
+  <widget class="QMenuBar" name="menubar">
+   <property name="geometry">
+    <rect>
+     <x>0</x>
+     <y>0</y>
+     <width>781</width>
+     <height>23</height>
+    </rect>
+   </property>
+  </widget>
+  <widget class="QStatusBar" name="statusbar"/>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>
