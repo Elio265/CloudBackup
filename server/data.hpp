@@ -5,19 +5,22 @@
 #include <unordered_map>
 #include <pthread.h>
 #include "Util.hpp"
+#include <queue>
 #include "config.hpp"
+#include <chrono>
+#include <atomic>
+#include <thread>
 
 namespace wzh
 {
   typedef struct BackupInfo
   {
     bool pack_flag;
-    // size_t fsize;
-    // time_t atime;
-    // time_t mtime;
     std::string real_path;
     std::string pack_path; 
     std::string url;
+    time_t last_modTime;
+    size_t file_size;
 
     bool newBackupInfo(const std::string &realpath)
     {
@@ -32,9 +35,8 @@ namespace wzh
       std::string packsuffix = con->getPackFileSuffix();
       std::string download_preffix = con->getDownloadPreffix();
       pack_flag = false;
-      // fsize = fu.fileSize();
-      // mtime = fu.lastModTime();
-      // atime = fu.lastAccTime();
+      last_modTime = fu.lastModTime();
+      file_size = fu.fileSize();
       real_path = realpath;
       pack_path = packdir + fu.fileName() + packsuffix;
       url = download_preffix + fu.fileName();
@@ -45,8 +47,9 @@ namespace wzh
   class DataManager
   {
   public:
-    DataManager()
+    DataManager() : _running(true), _changes(0)
     {
+      _worker = std::thread(&DataManager::storageThread, this);
       _backup_file = config::getInstance()->getBackupFile();
       pthread_rwlock_init(&_rwlock, NULL);
       InitLoad();
@@ -55,6 +58,8 @@ namespace wzh
     ~DataManager()
     {
       pthread_rwlock_destroy(&_rwlock);
+      _running = false;
+      _worker.join();
     }
 
     bool inSert(const BackupInfo &info)
@@ -62,7 +67,19 @@ namespace wzh
       pthread_rwlock_wrlock(&_rwlock);
       _table[info.url] = info;
       pthread_rwlock_unlock(&_rwlock);
-      storage();
+      ++_changes;
+      return true;
+    }
+
+    bool inSert(const std::vector<BackupInfo> &info_list)
+    {
+      pthread_rwlock_wrlock(&_rwlock);
+      for(auto &info : info_list)
+      {
+        _table[info.url] = info;
+      }
+      pthread_rwlock_unlock(&_rwlock);
+      _changes += info_list.size();
       return true;
     }
 
@@ -71,7 +88,7 @@ namespace wzh
       pthread_rwlock_wrlock(&_rwlock);
       _table[info.url] = info;
       pthread_rwlock_unlock(&_rwlock);
-      storage();
+      ++_changes;
       return true;
     }
 
@@ -89,23 +106,6 @@ namespace wzh
       return true;
     }
 
-    bool getOneByRealPath(const std::string &realpath, BackupInfo *info)
-    {
-      pthread_rwlock_rdlock(&_rwlock);
-      auto it = _table.begin();
-      for(; it != _table.end(); it++)
-      {
-        if(it->second.real_path == realpath)
-        {
-          *info = it->second;
-          pthread_rwlock_unlock(&_rwlock);
-          return true;
-        }
-      }
-      pthread_rwlock_unlock(&_rwlock);
-      return false;
-    }
-
     bool getAll(std::vector<BackupInfo> *arry)
     {
       pthread_rwlock_rdlock(&_rwlock);
@@ -118,21 +118,44 @@ namespace wzh
       return true;
     }
 
+    bool InitLoad()
+    {
+      FileUtil fu(_backup_file);
+      if(fu.exits() == false) return true;
+      std::string body;
+      fu.getContent(&body);
+      Json::Value root;
+      JsonUtil::deSerialize(body, &root);
+      std::vector<BackupInfo> info_list;
+      for(int i = 0; i < root.size(); i++)
+      {
+        BackupInfo info;
+        info.pack_flag = root[i]["pack_flag"].asBool();
+        info.pack_path = root[i]["pack_path"].asString();
+        info.real_path = root[i]["real_path"].asString();
+        info.url = root[i]["url"].asString();
+        info.file_size = root[i]["file_size"].asUInt();
+        info.last_modTime = root[i]["last_modTime"].asLargestInt();
+        info_list.push_back(info);
+      }
+      inSert(info_list);
+      return true;
+    }
+  private:
     bool storage()
     {
-      std::vector<BackupInfo> arry;
-      getAll(&arry);
+      std::vector<BackupInfo> infoList;
+      getAll(&infoList);
       Json::Value root;
-      for(int i = 0; i < arry.size(); i++)
+      for(int i = 0; i < infoList.size(); i++)
       {
         Json::Value item;
-        item["pack_flag"] = arry[i].pack_flag;
-        // item["fsize"] = (Json::Int64)arry[i].fsize;
-        // item["atime"] = (Json::Int64)arry[i].atime;
-        // item["mtime"] = (Json::Int64)arry[i].mtime;
-        item["pack_path"] = arry[i].pack_path;
-        item["real_path"] = arry[i].real_path;
-        item["url"] = arry[i].url;
+        item["pack_flag"] = infoList[i].pack_flag;
+        item["pack_path"] = infoList[i].pack_path;
+        item["real_path"] = infoList[i].real_path;
+        item["url"] = infoList[i].url;
+        item["last_modTime"] = infoList[i].last_modTime;
+        item["file_size"] = infoList[i].file_size;
         root.append(item);
       }
       std::string body;
@@ -142,32 +165,32 @@ namespace wzh
       return true;
     }
 
-    bool InitLoad()
+    void storageThread() 
     {
-      FileUtil fu(_backup_file);
-      if(fu.exits() == false) return true;
-      std::string body;
-      fu.getContent(&body);
-      Json::Value root;
-      JsonUtil::deSerialize(body, &root);
-      for(int i = 0; i < root.size(); i++)
+      auto last_storage_time = std::chrono::steady_clock::now();  // 记录上次持久化时间
+      while (_running) 
       {
-        BackupInfo info;
-        info.pack_flag = root[i]["pack_flag"].asBool();
-        // info.fsize = root[i]["fsize"].asInt();
-        // info.atime = root[i]["atime"].asInt64();
-        // info.mtime = root[i]["mtime"].asInt64();
-        info.pack_path = root[i]["pack_path"].asString();
-        info.real_path = root[i]["real_path"].asString();
-        info.url = root[i]["url"].asString();
-        inSert(info);
+        auto now = std::chrono::steady_clock::now();
+        auto duration = std::chrono::duration_cast<std::chrono::seconds>(now - last_storage_time).count();
+        if(_changes >= 100 || duration >= 5)
+        {
+          storage();
+          _changes = 0;
+          last_storage_time = now;
+        }
+          
+        std::this_thread::sleep_for(std::chrono::seconds(1));
       }
-      return true;
     }
+
   private:
     std::string _backup_file;
     pthread_rwlock_t _rwlock;
     std::unordered_map<std::string, BackupInfo> _table;
+
+    std::atomic<int> _changes;
+    std::thread _worker;
+    std::atomic<bool> _running;
   };
 }
 
