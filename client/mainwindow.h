@@ -33,7 +33,6 @@ protected:
     void refreshList();
 
 private slots:
-    void on_pushButton_clicked();
     // JSON 拉取完成回调
     void onListJsonFinished(QNetworkReply* reply);
 
@@ -41,6 +40,12 @@ private slots:
     void onUploadFinished();
 
     void on_flushfilelistbutton_clicked();
+
+    void on_uploadbutton_clicked();
+
+    void on_loginbutton_clicked();
+
+    void on_registerbutton_clicked();
 
 private:
     Ui::MainWindow *ui;

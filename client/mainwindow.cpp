@@ -22,17 +22,28 @@ MainWindow::MainWindow(QWidget *parent)
     ui->setupUi(this);
     Init();
 
-    // 拉取服务端列表
-    refreshList();
+    // 页面切换自动调整布局和图片
+    connect(ui->stackedWidget, &QStackedWidget::currentChanged, this, [this](int idx){
+        if (idx == 0) {
+            setupTreeColumnStretch();
+            updatePixmap();
+        }
+    });
 
     // UI 初始状态
     ui->progressBar->setVisible(false);
     ui->resultlabel->clear();
+
+    // 回车快捷登录
+    connect(ui->usernamelineedit, &QLineEdit::returnPressed, this, [this](){ ui->loginbutton->click(); });
+    connect(ui->passwordlineedit, &QLineEdit::returnPressed, this, [this](){ ui->loginbutton->click(); });
 }
 
 // 新增：刷新列表请求封装
 void MainWindow::refreshList()
 {
+    // 清空上一次的提示
+    ui->resultlabel->clear();
     QNetworkRequest listReq(QUrl(m_serverBaseUrl + "/listjson"));
     QNetworkReply *listReply = m_netManager->get(listReq);
     connect(listReply, &QNetworkReply::finished, this, [this, listReply]() {
@@ -44,8 +55,8 @@ void MainWindow::onListJsonFinished(QNetworkReply* reply)
 {
     // 1. 网络错误检查
     if (reply->error() != QNetworkReply::NoError) {
-        QMessageBox::warning(this, tr("网络错误"),
-                             tr("获取备份列表失败：%1").arg(reply->errorString()));
+        // 在状态栏显示错误信息
+        ui->resultlabel->setText(tr("获取备份列表失败：%1").arg(reply->errorString()));
         reply->deleteLater();
         return;
     }
@@ -104,6 +115,9 @@ void MainWindow::onListJsonFinished(QNetworkReply* reply)
         // 把按钮放到第 3 列
         ui->backupfilelist->setItemWidget(item, 3, btn);
     }
+
+    // 4. 刷新完成后显示成功提示
+    ui->resultlabel->setText(tr("刷新成功，共 %1 个文件").arg(array.size()));
 
     //  根据当前窗口宽度自适应列宽
     setupTreeColumnStretch();
@@ -212,7 +226,7 @@ MainWindow::~MainWindow()
 
 
 // 按钮点击：先在界面上记录时间，然后异步写文件
-void MainWindow::on_pushButton_clicked()
+void MainWindow::on_uploadbutton_clicked()
 {
     // 1. 选择文件
     QString srcPath = QFileDialog::getOpenFileName(
@@ -251,7 +265,7 @@ void MainWindow::on_pushButton_clicked()
     ui->progressBar->setValue(0);
     ui->progressBar->setVisible(true);
     ui->resultlabel->setText(tr("正在上传 %1 ...").arg(uploadFile->fileName()));
-    ui->pushButton->setEnabled(false);
+    ui->uploadbutton->setEnabled(false);
 
 
     // 发起上传
@@ -274,7 +288,7 @@ void MainWindow::onUploadProgress(qint64 bytesSent, qint64 bytesTotal)
 
 void MainWindow::onUploadFinished()
 {
-    ui->pushButton->setEnabled(true);
+    ui->uploadbutton->setEnabled(true);
     ui->progressBar->setVisible(false);
     ui->progressBar->setValue(0);
 
@@ -343,5 +357,77 @@ void MainWindow::on_flushfilelistbutton_clicked()
 {
     // 调用 refreshList 方法重新获取并展示备份列表
     refreshList();
-    ui->resultlabel->setText(tr("已刷新备份列表"));
+}
+
+void MainWindow::on_loginbutton_clicked()
+{
+    const QString username = ui->usernamelineedit->text().trimmed();
+    const QString password = ui->passwordlineedit->text();
+    if (username.isEmpty() || password.isEmpty()) {
+        QMessageBox::warning(this, tr("提示"), tr("用户名或密码不能为空"));
+        return;
+    }
+
+    QUrl url(m_serverBaseUrl + "/login");
+    QNetworkRequest request(url);
+    request.setHeader(QNetworkRequest::ContentTypeHeader, "application/x-www-form-urlencoded");
+    QUrlQuery params;
+    params.addQueryItem("username", username);
+    params.addQueryItem("password", password);
+    QByteArray postData = params.toString(QUrl::FullyEncoded).toUtf8();
+
+    QNetworkReply *reply = m_netManager->post(request, postData);
+    connect(reply, &QNetworkReply::finished, this, [this, reply]() {
+        reply->deleteLater();
+        if (reply->error() != QNetworkReply::NoError) {
+            QMessageBox::warning(this, tr("登录失败"), reply->errorString());
+            return;
+        }
+        const int status = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
+        if (status == 200) {
+            QMessageBox::information(this, tr("提示"), tr("登录成功"));
+            ui->stackedWidget->setCurrentIndex(0);
+            refreshList();
+        } else if (status == 401) {
+            QMessageBox::warning(this, tr("登录失败"), tr("用户名或密码错误"));
+        } else {
+            QMessageBox::warning(this, tr("登录失败"), tr("错误码：%1").arg(status));
+        }
+    });
+}
+
+void MainWindow::on_registerbutton_clicked()
+{
+    const QString username = ui->usernamelineedit->text().trimmed();
+    const QString password = ui->passwordlineedit->text();
+    if (username.isEmpty() || password.isEmpty()) {
+        QMessageBox::warning(this, tr("提示"), tr("用户名或密码不能为空"));
+        return;
+    }
+
+    QUrl url(m_serverBaseUrl + "/register");
+    QNetworkRequest request(url);
+    request.setHeader(QNetworkRequest::ContentTypeHeader, "application/x-www-form-urlencoded");
+    QUrlQuery params;
+    params.addQueryItem("username", username);
+    params.addQueryItem("password", password);
+    QByteArray postData = params.toString(QUrl::FullyEncoded).toUtf8();
+
+    QNetworkReply *reply = m_netManager->post(request, postData);
+    connect(reply, &QNetworkReply::finished, this, [this, reply]() {
+        reply->deleteLater();
+        if (reply->error() != QNetworkReply::NoError) {
+            QMessageBox::warning(this, tr("注册失败"), reply->errorString());
+            return;
+        }
+        const int status = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
+        if (status == 200) {
+            QMessageBox::information(this, tr("提示"), tr("注册成功，请登录"));
+            // 自动切回登录页，如果使用分页可调整
+        } else if (status == 401) {
+            QMessageBox::warning(this, tr("注册失败"), tr("用户已存在"));
+        } else {
+            QMessageBox::warning(this, tr("注册失败"), tr("错误码：%1").arg(status));
+        }
+    });
 }
