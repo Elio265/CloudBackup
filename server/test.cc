@@ -3,7 +3,7 @@
 #include "data.hpp"
 #include "HotManager.hpp"
 #include "Server.hpp"
-
+#include "user.hpp"
 #include <pthread.h>
 
 void serverTest()
@@ -18,11 +18,20 @@ void hotTest()
   hot.RunModule();
 }
 
+void init()
+{
+  wzh::config *con = wzh::config::getInstance();
+  wzh::FileUtil(con->getBackDir()).createDirectory();
+  wzh::FileUtil(con->getPackDir()).createDirectory();
+  wzh::UserManager::getInstance();
+  _data = new wzh::DataManager();
+}
+
 wzh::DataManager *_data;
 
 int main(int argc, char* argv[])
 {
-  _data = new wzh::DataManager();
+  init();
   std::thread thread_hot(hotTest);
   std::thread thread_server(serverTest);
   serverTest();

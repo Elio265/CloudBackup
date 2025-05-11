@@ -3,6 +3,7 @@
 
 #include "data.hpp"
 #include "./lib/httplib.h"
+#include "user.hpp"
 
 extern wzh::DataManager *_data;
 namespace wzh
@@ -20,12 +21,59 @@ namespace wzh
 
     bool RunModule()
     {
-        _server.Post("/upload", UpLoad);
-        _server.Get("/listshow", ListShow);
-        _server.Get("/", ListShow);
-        std::string download_url = _download_preffix + "(.*)";
-        _server.Get(download_url, DownLoad); // (.*)匹配任意字符任意次
-        _server.listen(_server_ip.c_str(), _server_port);
+      // 注册接口
+      _server.Post("/register", [](auto& req, auto& res)
+      {
+          // 1. 解析表单参数
+          auto u = req.get_param_value("username");
+          auto p = req.get_param_value("password");
+          
+          // 2. 业务处理
+          bool ok = UserManager::getInstance().registerUser(u, p);
+          
+          // 3. 设置响应
+          res.status = ok ? 200 : 400;
+          res.set_header("Content-Type", "application/json");
+          if (ok) 
+          {
+            res.set_content(R"({"result":"success","message":"注册成功"})",
+                            "application/json");
+          } 
+          else 
+          {
+              res.set_content(R"({"result":"user_exists","message":"用户已存在"})",
+                              "application/json");
+          }
+      });
+
+      // 登录接口
+      _server.Post("/login", [](auto& req, auto& res)
+      {
+          auto u = req.get_param_value("username");
+          auto p = req.get_param_value("password");
+          bool ok = UserManager::getInstance().loginUser(u, p);
+
+          res.status = ok ? 200 : 401;
+          res.set_header("Content-Type", "application/json");
+          if (ok) 
+          {
+            res.set_content(R"({"result":"success","message":"登录成功"})",
+                            "application/json");
+          } 
+          else 
+          {
+              res.set_content(R"({"result":"invalid_credentials","message":"用户名或密码错误"})",
+                              "application/json");
+          }
+      });
+      _server.Post("/upload", UpLoad);
+      _server.Get("/listshow", ListShow);
+      _server.Get("/", ListShow);
+      _server.Get("/listjson", ListJson); // 新增json接口
+      std::string download_url = _download_preffix + "(.*)";
+      _server.Get(download_url, DownLoad); // (.*)匹配任意字符任意次
+      _server.listen(_server_ip.c_str(), _server_port);
+        
       return true;
     }
 
@@ -44,7 +92,7 @@ namespace wzh
       std::string realpath = back_dir + FileUtil(file.filename).fileName();
       if(FileUtil(back_dir).exits() == false) FileUtil(back_dir).createDirectory();
       FileUtil fu(realpath);
-      fu.appContent(file.content);     //追加 
+      fu.setContent(file.content);    
       BackupInfo info;
       info.newBackupInfo(realpath);
       _data->inSert(info);
@@ -57,13 +105,54 @@ namespace wzh
       return tmp;
     }
 
+    static void ListJson(const httplib::Request &req, httplib::Response &res)
+    {
+        std::vector<BackupInfo> arry;
+        _data->getAll(&arry);
+        std::stringstream ss;
+        ss << "[";
+
+        for(size_t i=0; i<arry.size(); ++i) {
+            auto &a = arry[i];
+            FileUtil fu(a.real_path);
+
+            ss << "{";
+            ss << "\"filename\":\"" << fu.fileName() << "\",";
+            ss << "\"url\":\"" << a.url << "\",";
+            ss << "\"last_modTime\":" << a.last_modTime << ",";
+            ss << "\"file_size\":" << a.file_size;
+            ss << "}";
+            if(i+1 != arry.size()) ss << ",";
+        }
+        ss << "]";
+        res.body = ss.str();
+        res.set_header("Content-Type", "application/json");
+        res.status = 200;
+    }
+
+    // 工具函数：HTML转义
+    static std::string html_escape(const std::string &str) {
+      std::string out;
+      for (char c : str) {
+          switch (c) {
+              case '&': out += "&amp;"; break;
+              case '<': out += "&lt;"; break;
+              case '>': out += "&gt;"; break;
+              case '"': out += "&quot;"; break;
+              case '\'': out += "&#39;"; break;
+              default: out += c;
+          }
+      }
+      return out;
+    }
+
     static void ListShow(const httplib::Request &req, httplib::Response &res)
     {
       std::vector<BackupInfo> arry;
       _data->getAll(&arry);
       std::stringstream ss;
-
-      ss << "<html><head><title>Download</title>";
+  
+      ss << "<html><head><meta charset=\"UTF-8\"><title>Download</title>";
       ss << "<style>";
       ss << "body { font-family: Arial, sans-serif; background-color: #f0f0f0; margin: 0; padding: 0; }";
       ss << "h1 { color: #333; }";
@@ -82,21 +171,21 @@ namespace wzh
       ss << "<th>Last Modified</th>";
       ss << "<th>File Size</th>";
       ss << "</tr>";
-
-      for(auto &a : arry)
+  
+      for (auto &a : arry)
       {
           ss << "<tr>";
           FileUtil fu(a.real_path);
-          std::string filename = fu.fileName();
+          std::string filename = html_escape(fu.fileName());
           ss << "<td><a href='" << a.url << "' class='file-link'>" << filename << "</a></td>";
-          ss << "<td align='right' class='date'>" << timetoStr(fu.lastModTime()) << "</td>";
-          ss << "<td align='right'>" << fu.fileSize() / 1024 << " KB" << "</td>";
+          ss << "<td align='right' class='date'>" << timetoStr(a.last_modTime) << "</td>";
+          ss << "<td align='right'>" << a.file_size / 1024 << " KB" << "</td>";
           ss << "</tr>";
       }
-
+  
       ss << "</table></body></html>";
       res.body = ss.str();
-      res.set_header("Content-Type", "text/html");
+      res.set_header("Content-Type", "text/html; charset=UTF-8");
       res.status = 200;
     }
 

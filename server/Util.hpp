@@ -90,26 +90,6 @@ namespace wzh
       return true;
     }
 
-    bool appContent(const std::string &body)
-    {
-      std::ofstream ofs;
-      ofs.open(_filename, std::ios::binary | std::ios::app);
-      if(ofs.is_open() == false)
-      {
-        std::cout << "write open failed\n";
-        return false;
-      }
-      ofs.write(&body[0], body.size());
-      if(ofs.good() == false)
-      {
-        std::cout << "write file content failed\n";
-        ofs.close();
-        return false;
-      }
-      ofs.close();
-      return true;
-    }
-
     bool getContent(std::string *body) //向文件读取数据
     {
       size_t fsize = fileSize();
@@ -185,8 +165,7 @@ namespace wzh
         std::cout << "Zstd compression failed\n";
         return false;
       }
-
-      // std::string packed = bundle::pack(bundle::LZIP, body);
+      compressed.resize(compressedSize); // 裁剪字符串，只保留有效数据
       FileUtil fu(packname);
       if(fu.setContent(compressed) == false)
       {
@@ -204,15 +183,20 @@ namespace wzh
         std::cout << "unCompress get file content failed\n";
         return false;
       }
-      // 计算解压后的大小（这里假设解压后不会超过原始大小的 10 倍）
-      size_t decompressedSize = body.size() * 10;
+
+      unsigned long long decompressedSize = ZSTD_getFrameContentSize(body.data(), body.size());
+      if(decompressedSize == ZSTD_CONTENTSIZE_ERROR || decompressedSize == ZSTD_CONTENTSIZE_UNKNOWN) {
+          std::cout << "Zstd couldn't determine original size\n";
+          return false;
+      }
+      // size_t decompressedSize = body.size() * 10;
       std::vector<char> decompressed(decompressedSize);
       // 解压数据
       size_t actualDecompressedSize = ZSTD_decompress(decompressed.data(), decompressedSize, body.data(), body.size());
       
       if(ZSTD_isError(actualDecompressedSize))
       {
-        std::cout << "Zstd decompression failed\n";
+        std::cout << "Zstd decompression failed: " << ZSTD_getErrorName(actualDecompressedSize) << "\n";
         return false;
       }
 
