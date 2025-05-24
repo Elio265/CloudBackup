@@ -2,19 +2,33 @@
 #define MAINWINDOW_H
 
 #include <QMainWindow>
-#include <QFutureWatcher>
-#include <QNetworkAccessManager>
-#include <QNetworkReply>
+#include <QMessageBox>
+#include <QProgressDialog>
+#include <QJsonDocument>
+#include <QRegularExpressionValidator>
+#include <QDesktopServices>
 #include <QJsonDocument>
 #include <QJsonArray>
 #include <QJsonObject>
-#include <QDesktopServices>    // 用于打开下载链接
-#include <QUrl>
+#include <QVariant>
+#include <QDateTime>
+#include <QFileDialog>
 
+#include "usermanager.h"
+#include "uploadmanager.h"
+#include "logger.h"
 
 QT_BEGIN_NAMESPACE
 namespace Ui { class MainWindow; }
 QT_END_NAMESPACE
+
+struct BackupItem
+{
+    QString filename;
+    QString url;
+    qint64 lastModTime;
+    qint64 fileSize;
+};
 
 class MainWindow : public QMainWindow
 {
@@ -22,38 +36,29 @@ class MainWindow : public QMainWindow
 
 public:
     MainWindow(QWidget *parent = nullptr);
+    QList<BackupItem> parseBackupListJson(const QByteArray &jsonData);
+    void updateBackupTable(const QList<BackupItem> &items);
     ~MainWindow();
 
-protected:
-    void Init();
-    void resizeEvent(QResizeEvent *event);
-    void setupTreeColumnStretch();
-    void showEvent(QShowEvent *event);
-    void updatePixmap();
-    void refreshList();
-
 private slots:
-    // JSON 拉取完成回调
-    void onListJsonFinished(QNetworkReply* reply);
+    void on_registerbutton_clicked();
 
-    void onUploadProgress(qint64 bytesSent, qint64 bytesTotal);
-    void onUploadFinished();
-
-    void on_flushfilelistbutton_clicked();
-
-    void on_uploadbutton_clicked();
+    void on_returnbutton_clicked();
 
     void on_loginbutton_clicked();
 
-    void on_registerbutton_clicked();
+    void on_registerbutton_2_clicked();
+
+    void on_flushlistbutton_clicked();
+
+    void on_uploadbutton_clicked();
 
 private:
     Ui::MainWindow *ui;
-    QPixmap pixmap;
-    QNetworkAccessManager *m_netManager;
-    QString m_serverBaseUrl;
-    QNetworkReply        *m_currentReply;
-    QString m_uploadFileName;
-
+    usermanager* userManager;
+    uploadmanager *uploader;
+    QProgressDialog* loginDialog = nullptr;
+    QProgressDialog* registerDialog = nullptr;
 };
+
 #endif // MAINWINDOW_H

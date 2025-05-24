@@ -1,11 +1,8 @@
-QT       += core gui concurrent network
+QT       += core gui network
 
 greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 
 CONFIG += c++11
-
-LIBS += -lstdc++fs -lws2_32
-
 
 # The following define makes your compiler emit warnings if you use
 # any Qt feature that has been marked deprecated (the exact warnings
@@ -19,17 +16,20 @@ DEFINES += QT_DEPRECATED_WARNINGS
 #DEFINES += QT_DISABLE_DEPRECATED_BEFORE=0x060000    # disables all the APIs deprecated before Qt 6.0.0
 
 SOURCES += \
+    logger.cpp \
     main.cpp \
-    mainwindow.cpp
+    mainwindow.cpp \
+    uploadmanager.cpp \
+    usermanager.cpp
 
 HEADERS += \
-    mainwindow.h
+    logger.h \
+    mainwindow.h \
+    uploadmanager.h \
+    usermanager.h
 
 FORMS += \
     mainwindow.ui
-
-TRANSLATIONS += \
-    CloudbackupApp_zh_SG.ts
 
 # Default rules for deployment.
 qnx: target.path = /tmp/$${TARGET}/bin

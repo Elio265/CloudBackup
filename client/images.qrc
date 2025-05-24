@@ -1,8 +1,6 @@
 <RCC>
     <qresource prefix="/">
+        <file>images/client_background.jpg</file>
         <file>images/icon.svg</file>
-        <file>images/background.png</file>
-        <file>images/title.png</file>
-        <file>images/title2.png</file>
     </qresource>
 </RCC>
